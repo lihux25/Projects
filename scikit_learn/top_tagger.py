@@ -75,17 +75,18 @@ for iy in range(nfig_y):
 
 # In[5]:
 
+plt.rc('figure', figsize=(15, 15))
 _=pd.scatter_matrix(df[df['answer']==1].ix[:, :'dTheta13'], diagonal='kde', c='k', alpha=0.3)
 
 
-# In[8]:
+# In[6]:
 
 _=pd.scatter_matrix(df[df['answer']==0].ix[:, :'dTheta13'], diagonal='kde', c='k', alpha=0.3)
 
 
 # #### Equalize the weighted number of events for signal and background
 
-# In[4]:
+# In[7]:
 
 nSig_wt = df[df['answer']==1].weight.sum()
 nBkg_wt = df[df['answer']==0].weight.sum()
@@ -95,12 +96,12 @@ df.loc[df['answer']==0, 'weight'] *= weight
 
 # #### Randomize the data before feeding into the classifier
 
-# In[5]:
+# In[8]:
 
 df_shuffled = df.reindex(np.random.permutation(df.index))
 
 
-# In[6]:
+# In[9]:
 
 npyInputData = np.array(df_shuffled.ix[:, :'j3_QGL'])
 npyInputAnswer = np.array(df_shuffled.ix[:, 'answer'])
@@ -109,7 +110,7 @@ npyInputWgts = np.array(df_shuffled.ix[:, 'weight'])
 
 # #### Start the Random Forest classifier using scikit-learn package
 
-# In[7]:
+# In[10]:
 
 clf = RandomForestClassifier(n_estimators=100, max_depth=14, n_jobs=4)
 clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)
@@ -117,7 +118,7 @@ clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)
 
 # #### Save the trained results into pickle file (for future re-use)
 
-# In[8]:
+# In[11]:
 
 fileObject = open("TrainingOutput.pkl",'wb')
 out = pickle.dump(clf, fileObject)
@@ -126,7 +127,7 @@ fileObject.close()
 
 # #### Look at the feature importance of the input variables
 
-# In[9]:
+# In[12]:
 
 listToGet = df_shuffled.columns[:df_shuffled.columns.get_loc('j3_QGL')+1]
 feature_importance = clf.feature_importances_
@@ -135,8 +136,9 @@ feature_importance = 100.0 * (feature_importance / feature_importance.max())
 sorted_idx = np.argsort(feature_importance)
 
 
-# In[10]:
+# In[13]:
 
+plt.rc('figure', figsize=(12, 8))
 pos = np.arange(sorted_idx.shape[0]) + .5
 _ = plt.barh(pos, feature_importance[sorted_idx], align='center')
 _ = plt.yticks(pos, feature_names[sorted_idx])
@@ -144,7 +146,7 @@ _ = plt.xlabel('Relative Importance')
 _ = plt.title('Variable Importance')
 
 
-# In[11]:
+# In[14]:
 
 featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
@@ -152,7 +154,7 @@ print([featureImportanceandNames[a] for a in sorted_idx])
 
 # #### Now load in the validation sample
 
-# In[12]:
+# In[15]:
 
 val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
 val_npInputList = np.array(val_df.ix[:, :'j3_QGL'])
@@ -168,13 +170,13 @@ val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
 
 # #### The predict probability for the validation sample events
 
-# In[13]:
+# In[16]:
 
 val_output = clf.predict_proba(val_npInputList)[:,1]
 val_df['disc'] = val_output
 
 
-# In[14]:
+# In[17]:
 
 from scipy.linalg import fractional_matrix_power
 def diagElements(m):
@@ -186,7 +188,7 @@ def corrMat(m):
     return np.array(sqrt_diag * m  * sqrt_diag)
 
 
-# In[15]:
+# In[18]:
 
 ecv = EmpiricalCovariance()
 _=ecv.fit(val_slimNpData0_ttbar)
@@ -197,7 +199,7 @@ _=ecv.fit(val_slimNpData_zinv)
 corr_zinv = corrMat(np.matrix(ecv.covariance_))
 
 
-# In[16]:
+# In[19]:
 
 _=plt.matshow(corr0_ttbar, cmap=plt.cm.seismic, vmin = -1, vmax = 1)
 _=plt.xticks(range(len(listToGet)), listToGet, rotation='vertical')
@@ -220,14 +222,14 @@ plt.savefig("feature_corrolation_Znunu.png")
 
 # #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
 
-# In[17]:
+# In[20]:
 
 val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)
 
 
 # #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
-# In[18]:
+# In[21]:
 
 sr_cuts = (val_df['Njet']>=4) & (val_df['MET']>200) & (val_df['cand_dRMax']<1.5)
 baseTagger_fpr_tpr = val_df[sr_cuts].groupby(by=['answer', 'passBaseTagger'])['sampleWgt'].sum()
@@ -249,7 +251,7 @@ fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 # #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
 
-# In[19]:
+# In[22]:
 
 val_npInputAnswers_sel = val_npInputAnswers[np.array(sr_cuts)]
 val_output_sel = val_output[np.array(sr_cuts)]
@@ -304,7 +306,7 @@ print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.form
 
 # #### The probability output distribution for signal and background (selected cut value is indicated)
 
-# In[20]:
+# In[23]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
 bkg_val_output = val_output[val_npInputAnswers==0]
@@ -315,12 +317,12 @@ _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy',
 
 # #### Finally we apply both base tagger and the MVA tagger on all the validation events. However additional treatment is done to resolve the overlap where multiple tagged candiates might share the same AK4 jet(s).
 
-# In[21]:
+# In[24]:
 
 grouped_val_df = val_df.groupby(['evtNum', 'procTypes'])
 
 
-# In[22]:
+# In[25]:
 
 sr_grouped_baseTagger = grouped_val_df.apply(resolveOverlapHEP)
 df_grouped_baseTagger = sr_grouped_baseTagger.reset_index()
@@ -339,12 +341,12 @@ val_df_taggers.index = val_df.index
 
 # #### An example display of the final DataFrame with the taggers
 
-# In[23]:
+# In[26]:
 
 val_df_taggers.head()
 
 
 # In[ ]:
 
-
+get_ipython().system('jupyter nbconvert --to python top_tagger.ipynb')
 
