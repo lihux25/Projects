@@ -50,9 +50,9 @@ df = get_csv('training.csv', 'dRMax_LE_1p5_m_in_100_250_training.csv')
 
 # In[4]:
 
-nSig = df[df['answer']==1].count().iloc[0]
-nBkg = df[df['answer']==0].count().iloc[0]
-weight = nSig/nBkg
+nSig_wt = df[df['answer']==1].weight.sum()
+nBkg_wt = df[df['answer']==0].weight.sum()
+weight = nSig_wt/nBkg_wt
 df.loc[df['answer']==0, 'weight'] *= weight
 
 
@@ -256,12 +256,12 @@ y_bkg, x_bkg, _=plt.hist(bkg_val_output, range = (0, 1.0), normed = True, color 
 _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy', linestyle = '--')
 
 
-# In[ ]:
+# In[21]:
 
 grouped_val_df = val_df.groupby(['evtNum', 'procTypes'])
 
 
-# In[ ]:
+# In[22]:
 
 sr_grouped_baseTagger = grouped_val_df.apply(resolveOverlapHEP)
 df_grouped_baseTagger = sr_grouped_baseTagger.reset_index()
@@ -278,7 +278,7 @@ val_df_taggers = pd.merge(val_df_baseTagger, df_grouped_mvaTagger,
 val_df_taggers.index = val_df.index
 
 
-# In[ ]:
+# In[23]:
 
 val_df_taggers.head()
 
