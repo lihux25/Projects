@@ -1,6 +1,8 @@
 
 # coding: utf-8
 
+# ### This is notebook of development of a top tagger using scikit-learn and pandas
+
 # In[1]:
 
 from common import *
@@ -24,6 +26,8 @@ from baseTagger import *
 get_ipython().magic('matplotlib inline')
 
 
+# #### The get_csv() function to read data from csv file. The original csv file is produced from ROOT file using the [convert_ROOT_to_CSV.py](convert_ROOT_to_CSV.py) code. The data includes various kinematic variables from both the $t\bar{t}$ (ttbar) sample and $Z(\rightarrow\nu\nu$) (zinv) sample. The ttbar sample contains the top quark signal while the zinv sample contains pure background. We select three AK4 jets for a combination where we introduce the major kinematic variables in the top quark rest-frame.
+
 # In[2]:
 
 def get_csv(orifilename, outfilename, forceRedo = False):
@@ -43,10 +47,43 @@ def get_csv(orifilename, outfilename, forceRedo = False):
     return df
 
 
+# #### The samples are split into two. One is used for training, the other is used for validation.
+
 # In[3]:
 
 df = get_csv('training.csv', 'dRMax_LE_1p5_m_in_100_250_training.csv')
 
+
+# #### Plots of the major kinematic variables and their correlations
+# The 1D histograms clearly show the difference in shapes between sginal and background
+
+# In[4]:
+
+plt.rc('figure', figsize=(12, 15))
+nfig_x = 4
+nfig_y = 4
+figs, axes = plt.subplots(nfig_y, nfig_x)
+for iy in range(nfig_y):
+    for ix in range(nfig_x):
+        _=axes[iy, ix].hist(df[df['answer']==1].ix[:, ix+iy*nfig_x], bins=25, normed=True, color='red', histtype='step', label='signal')
+        _=axes[iy, ix].hist(df[df['answer']==0].ix[:, ix+iy*nfig_x], bins=25, normed=True, color='blue', histtype='step', label='background')
+        _=axes[iy, ix].set_xlabel(df.columns[ix+iy*nfig_x])
+        _=axes[iy, ix].legend(loc='best', fontsize='xx-small')
+
+
+# The scatter plots are useful to see the correlations but in general the multivariate analysis can handle well the correlations 
+
+# In[5]:
+
+_=pd.scatter_matrix(df[df['answer']==1].ix[:, :'dTheta13'], diagonal='kde', c='k', alpha=0.3)
+
+
+# In[8]:
+
+_=pd.scatter_matrix(df[df['answer']==0].ix[:, :'dTheta13'], diagonal='kde', c='k', alpha=0.3)
+
+
+# #### Equalize the weighted number of events for signal and background
 
 # In[4]:
 
@@ -55,6 +92,8 @@ nBkg_wt = df[df['answer']==0].weight.sum()
 weight = nSig_wt/nBkg_wt
 df.loc[df['answer']==0, 'weight'] *= weight
 
+
+# #### Randomize the data before feeding into the classifier
 
 # In[5]:
 
@@ -68,11 +107,15 @@ npyInputAnswer = np.array(df_shuffled.ix[:, 'answer'])
 npyInputWgts = np.array(df_shuffled.ix[:, 'weight'])
 
 
+# #### Start the Random Forest classifier using scikit-learn package
+
 # In[7]:
 
 clf = RandomForestClassifier(n_estimators=100, max_depth=14, n_jobs=4)
 clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)
 
+
+# #### Save the trained results into pickle file (for future re-use)
 
 # In[8]:
 
@@ -80,6 +123,8 @@ fileObject = open("TrainingOutput.pkl",'wb')
 out = pickle.dump(clf, fileObject)
 fileObject.close()
 
+
+# #### Look at the feature importance of the input variables
 
 # In[9]:
 
@@ -105,6 +150,8 @@ featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
 
 
+# #### Now load in the validation sample
+
 # In[12]:
 
 val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
@@ -118,6 +165,8 @@ val_slimNpData0_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==0]
 val_slimNpData1_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==1]
 val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
 
+
+# #### The predict probability for the validation sample events
 
 # In[13]:
 
@@ -169,10 +218,14 @@ _=plt.colorbar(orientation='vertical')
 plt.savefig("feature_corrolation_Znunu.png")
 
 
+# #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
+
 # In[17]:
 
 val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)
 
+
+# #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
 # In[18]:
 
@@ -193,6 +246,8 @@ fscore_base = 2*precision_base*recall_base/(precision_base+recall_base)
 
 fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
+
+# #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
 
 # In[19]:
 
@@ -247,6 +302,8 @@ print('mva (same_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.for
 print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.format(fscore[idx_max_fscore], precision[idx_max_fscore], recall[idx_max_fscore], thresholds_pr[idx_max_fscore]))
 
 
+# #### The probability output distribution for signal and background (selected cut value is indicated)
+
 # In[20]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
@@ -255,6 +312,8 @@ y_sig, x_sig, _=plt.hist(sig_val_output, range = (0, 1.0), normed = True, color 
 y_bkg, x_bkg, _=plt.hist(bkg_val_output, range = (0, 1.0), normed = True, color = 'blue', bins = 100, histtype='step')
 _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy', linestyle = '--')
 
+
+# #### Finally we apply both base tagger and the MVA tagger on all the validation events. However additional treatment is done to resolve the overlap where multiple tagged candiates might share the same AK4 jet(s).
 
 # In[21]:
 
@@ -277,6 +336,8 @@ val_df_taggers = pd.merge(val_df_baseTagger, df_grouped_mvaTagger,
                                          right_on=['evtNum', 'procTypes'])
 val_df_taggers.index = val_df.index
 
+
+# #### An example display of the final DataFrame with the taggers
 
 # In[23]:
 
