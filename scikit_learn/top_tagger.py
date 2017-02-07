@@ -96,7 +96,8 @@ def plot_scatter(df_input, nVars, nBins):
                 kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(xy_col)
                 z = np.exp(kde.score_samples(xy_col)) 
                 # See http://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.scatter.html#matplotlib.axes.Axes.scatter
-                sc =axes[iy, ix].scatter(x_col, y_col, c=z, cmap=cm, marker='.', label='(%s, %s)'%(df.columns[ix], df.columns[iy]))
+                # s: marker size   lw: line width
+                sc =axes[iy, ix].scatter(x_col, y_col, c=z, cmap=cm, marker='.', s=2, label='(%s, %s)'%(df.columns[ix], df.columns[iy]))
 #                _=axes[iy, ix].legend(loc='best', fontsize='small')
 #                _=figs.colorbar(sc, ax=axes[iy, ix])
             else:
@@ -110,20 +111,31 @@ def plot_scatter(df_input, nVars, nBins):
             if iy == nVars-1:
                 _=axes[iy, ix].set_xlabel(df.columns[ix])
                 _=axes[iy, ix].get_xaxis().set_visible(True)
+            if ix == nVars-1:
+                _=axes[iy, ix].yaxis.set_label_position('right')
+                _=axes[iy, ix].yaxis.tick_right()
+                _=axes[iy, ix].set_ylabel(df.columns[iy])
+                _=axes[iy, ix].get_yaxis().set_visible(True)
+            if iy == 0:
+                _=axes[iy, ix].xaxis.set_label_position('top')
+                _=axes[iy, ix].xaxis.tick_top()
+                _=axes[iy, ix].set_xlabel(df.columns[ix])
+                _=axes[iy, ix].get_xaxis().set_visible(True)
 #    figs.tight_layout()
     plt.show()
 
 
 # In[6]:
 
-plot_scatter(df[df['answer']==1], 10, 50)
-len_true_answer = len(df[df['answer']==1])
+#len_true_answer = len(df[df['answer']==1])
+nSamples_for_scatterPlots = 3000
+get_ipython().magic("time plot_scatter(df[df['answer']==1].sample(nSamples_for_scatterPlots), 10, 25)")
 
 
 # In[7]:
 
 #_=pd.scatter_matrix(df[df['answer']==0].ix[:, :'dTheta13'], diagonal='kde', c='k', alpha=0.3)
-plot_scatter(df[df['answer']==0].sample(len_true_answer), 10, 50)
+get_ipython().magic("time plot_scatter(df[df['answer']==0].sample(nSamples_for_scatterPlots), 10, 25)")
 
 
 # #### Equalize the weighted number of events for signal and background
@@ -141,10 +153,6 @@ df.loc[df['answer']==0, 'weight'] *= weight
 # In[9]:
 
 df_shuffled = df.reindex(np.random.permutation(df.index))
-
-
-# In[10]:
-
 npyInputData = np.array(df_shuffled.ix[:, :'j3_QGL'])
 npyInputAnswer = np.array(df_shuffled.ix[:, 'answer'])
 npyInputWgts = np.array(df_shuffled.ix[:, 'weight'])
@@ -152,15 +160,16 @@ npyInputWgts = np.array(df_shuffled.ix[:, 'weight'])
 
 # #### Start the Random Forest classifier using scikit-learn package
 
-# In[11]:
+# In[10]:
 
-clf = RandomForestClassifier(n_estimators=100, max_depth=14, n_jobs=4)
-clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)
+#clf = RandomForestClassifier(n_estimators=100, max_depth=14, n_jobs=4)
+clf = RandomForestClassifier(n_estimators=100, max_depth=18, n_jobs=4)
+get_ipython().magic('time clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)')
 
 
 # #### Save the trained results into pickle file (for future re-use)
 
-# In[12]:
+# In[11]:
 
 fileObject = open("TrainingOutput.pkl",'wb')
 out = pickle.dump(clf, fileObject)
@@ -169,7 +178,7 @@ fileObject.close()
 
 # #### Look at the feature importance of the input variables
 
-# In[13]:
+# In[12]:
 
 listToGet = df_shuffled.columns[:df_shuffled.columns.get_loc('j3_QGL')+1]
 feature_importance = clf.feature_importances_
@@ -178,7 +187,7 @@ feature_importance = 100.0 * (feature_importance / feature_importance.max())
 sorted_idx = np.argsort(feature_importance)
 
 
-# In[14]:
+# In[13]:
 
 plt.rc('figure', figsize=(6, 4))
 pos = np.arange(sorted_idx.shape[0]) + .5
@@ -188,7 +197,7 @@ _ = plt.xlabel('Relative Importance')
 _ = plt.title('Variable Importance')
 
 
-# In[15]:
+# In[14]:
 
 featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
@@ -196,7 +205,7 @@ print([featureImportanceandNames[a] for a in sorted_idx])
 
 # #### Now load in the validation sample
 
-# In[16]:
+# In[15]:
 
 val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
 val_npInputList = np.array(val_df.ix[:, :'j3_QGL'])
@@ -212,13 +221,13 @@ val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
 
 # #### The predict probability for the validation sample events
 
-# In[17]:
+# In[16]:
 
 val_output = clf.predict_proba(val_npInputList)[:,1]
 val_df['disc'] = val_output
 
 
-# In[18]:
+# In[17]:
 
 from scipy.linalg import fractional_matrix_power
 def diagElements(m):
@@ -229,9 +238,18 @@ def corrMat(m):
     sqrt_diag = fractional_matrix_power(diagElements(m), -0.5)
     return np.array(sqrt_diag * m  * sqrt_diag)
 
+def plot_corrMat(corrMat_input, varNames, figs, ax):
+    sc=ax.matshow(corrMat_input, cmap=plt.cm.seismic, vmin=-1, vmax=1)
+    _=ax.set_xticks(range(len(varNames)))
+    _=ax.set_xticklabels(varNames, rotation='vertical')
+    _=ax.set_yticks(range(len(varNames))) 
+    _=ax.set_yticklabels(varNames)
+    _=figs.colorbar(sc, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
 
-# In[19]:
 
+# In[18]:
+
+plt.rc('figure', figsize=(10, 10))
 ecv = EmpiricalCovariance()
 _=ecv.fit(val_slimNpData0_ttbar)
 corr0_ttbar = corrMat(np.matrix(ecv.covariance_))
@@ -239,39 +257,25 @@ _=ecv.fit(val_slimNpData1_ttbar)
 corr1_ttbar = corrMat(np.matrix(ecv.covariance_))
 _=ecv.fit(val_slimNpData_zinv)
 corr_zinv = corrMat(np.matrix(ecv.covariance_))
-
-
-# In[20]:
-
-_=plt.matshow(corr0_ttbar, cmap=plt.cm.seismic, vmin = -1, vmax = 1)
-_=plt.xticks(range(len(listToGet)), listToGet, rotation='vertical')
-_=plt.yticks(range(len(listToGet)), listToGet)
-_=plt.colorbar(orientation='vertical')
-plt.savefig("feature_corrolation_ttbar_nomatch.png")
-
-_=plt.matshow(corr1_ttbar, cmap=plt.cm.seismic, vmin = -1, vmax = 1)
-_=plt.xticks(range(len(listToGet)), listToGet, rotation='vertical')
-_=plt.yticks(range(len(listToGet)), listToGet)
-_=plt.colorbar(orientation='vertical')
-plt.savefig("feature_corrolation_ttbar_match.png")
-
-_=plt.matshow(corr_zinv, cmap=plt.cm.seismic, vmin = -1, vmax = 1)
-_=plt.xticks(range(len(listToGet)), listToGet, rotation='vertical')
-_=plt.yticks(range(len(listToGet)), listToGet)
-_=plt.colorbar(orientation='vertical')
-plt.savefig("feature_corrolation_Znunu.png")
+figs, axes = plt.subplots(2, 2)
+plot_corrMat(corr0_ttbar, listToGet, figs, axes[0, 0])
+plot_corrMat(corr1_ttbar, listToGet, figs, axes[0, 1])
+plot_corrMat(corr_zinv, listToGet, figs, axes[1, 0])
+figs.delaxes(axes[1, 1])
+figs.tight_layout()
+plt.show()
 
 
 # #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
 
-# In[21]:
+# In[19]:
 
-val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)
+get_ipython().magic("time val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)")
 
 
 # #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
-# In[22]:
+# In[20]:
 
 sr_cuts = (val_df['Njet']>=4) & (val_df['MET']>200) & (val_df['cand_dRMax']<1.5)
 baseTagger_fpr_tpr = val_df[sr_cuts].groupby(by=['answer', 'passBaseTagger'])['sampleWgt'].sum()
@@ -293,7 +297,9 @@ fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 # #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
 
-# In[23]:
+# In[21]:
+
+plt.rc('figure', figsize=(8, 6))
 
 val_npInputAnswers_sel = val_npInputAnswers[np.array(sr_cuts)]
 val_output_sel = val_output[np.array(sr_cuts)]
@@ -312,6 +318,9 @@ _ = plt.ylabel('True Positive Rate')
 _ = plt.title('ROC')
 _ = plt.legend(loc='lower right')
 _ = plt.plot(fpr_base, tpr_base, 'or')
+_ = plt.plot([0, 1], [tpr_base, tpr_base], ls='--', color='red', lw=1)
+_ = plt.plot([fpr_base, fpr_base], [0, 1.05], ls='--', color='red', lw=1)
+_ = plt.grid(b=True, color='grey', ls='-', lw=0.5, alpha=0.5)
 plt.show()
 #_=plt.plot(recall, precision, color = 'darkorange')
 #_=plt.xlim([0.0, 1.0])
@@ -348,7 +357,7 @@ print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.form
 
 # #### The probability output distribution for signal and background (selected cut value is indicated)
 
-# In[24]:
+# In[22]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
 bkg_val_output = val_output[val_npInputAnswers==0]
@@ -366,13 +375,13 @@ grouped_val_df = val_df.groupby(['evtNum', 'procTypes'])
 
 # In[ ]:
 
-sr_grouped_baseTagger = grouped_val_df.apply(resolveOverlapHEP)
+get_ipython().magic('time sr_grouped_baseTagger = grouped_val_df.apply(resolveOverlapHEP)')
 df_grouped_baseTagger = sr_grouped_baseTagger.reset_index()
 df_grouped_baseTagger =df_grouped_baseTagger.rename(columns={0:'baseTagger'})
 val_df_baseTagger = pd.merge(val_df, df_grouped_baseTagger, how='outer', left_on = ['evtNum', 'procTypes'], 
          right_on = ['evtNum', 'procTypes'])
 val_df_baseTagger.index = val_df.index
-sr_grouped_mvaTagger = grouped_val_df.apply(resolveOverlap, mva_cut)
+get_ipython().magic('time sr_grouped_mvaTagger = grouped_val_df.apply(resolveOverlap, mva_cut)')
 df_grouped_mvaTagger = sr_grouped_mvaTagger.reset_index()
 df_grouped_mvaTagger = df_grouped_mvaTagger.rename(columns={0:'mvaTagger'})
 val_df_taggers = pd.merge(val_df_baseTagger, df_grouped_mvaTagger, 
