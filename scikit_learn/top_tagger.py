@@ -156,6 +156,7 @@ df_shuffled = df.reindex(np.random.permutation(df.index))
 npyInputData = np.array(df_shuffled.ix[:, :'j3_QGL'])
 npyInputAnswer = np.array(df_shuffled.ix[:, 'answer'])
 npyInputWgts = np.array(df_shuffled.ix[:, 'weight'])
+list_procType = (df_shuffled.ix[:, 'procTypes']).tolist()
 
 
 # #### Start the Random Forest classifier using scikit-learn package
@@ -167,9 +168,40 @@ clf = RandomForestClassifier(n_estimators=100, max_depth=18, n_jobs=4)
 get_ipython().magic('time clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)')
 
 
-# #### Save the trained results into pickle file (for future re-use)
+# #### Start the MLP classifier using scikit-learn package
 
 # In[11]:
+
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+
+sel_sig_npyInputData = npyInputData[npyInputAnswer==1]
+sel_bkg_npyInputData = npyInputData[npyInputAnswer==0]
+
+sel_bkg_npyInputData_ttbar = np.array(df_shuffled[(df_shuffled['answer']==0) & (df_shuffled['procTypes']=='ttbar')].ix[:, :'j3_QGL'])
+sel_bkg_npyInputData_zinv = np.array(df_shuffled[(df_shuffled['answer']==0) & (df_shuffled['procTypes']=='zinv')].ix[:, :'j3_QGL'])
+
+sel_bkg_npyInputData = sel_bkg_npyInputData[np.random.permutation(sel_bkg_npyInputData.shape[0])][:int(sel_sig_npyInputData.shape[0]*3)]
+sel_npyInputData = np.concatenate((sel_sig_npyInputData, sel_bkg_npyInputData))
+sel_npyInputAnswer = np.concatenate((np.ones(sel_sig_npyInputData.shape[0]), np.zeros(sel_bkg_npyInputData.shape[0])))
+
+perms = np.random.permutation(sel_npyInputData.shape[0])
+sel_npyInputData = sel_npyInputData[perms]
+sel_npyInputAnswer = sel_npyInputAnswer[perms]
+
+scaler.fit(sel_npyInputData)
+scaled_npyInputData = scaler.transform(sel_npyInputData)
+
+clf_mlp = MLPClassifier(solver='adam', hidden_layer_sizes=(8, 8), alpha=1e-5, random_state=1, learning_rate='adaptive', max_iter=1000)
+get_ipython().magic('time clf_mlp.fit(scaled_npyInputData, sel_npyInputAnswer)')
+clf_mlp.loss_
+clf_mlp.score(scaled_npyInputData, sel_npyInputAnswer)
+
+
+# #### Save the trained results into pickle file (for future re-use)
+
+# In[12]:
 
 fileObject = open("TrainingOutput.pkl",'wb')
 out = pickle.dump(clf, fileObject)
@@ -178,7 +210,7 @@ fileObject.close()
 
 # #### Look at the feature importance of the input variables
 
-# In[12]:
+# In[13]:
 
 listToGet = df_shuffled.columns[:df_shuffled.columns.get_loc('j3_QGL')+1]
 feature_importance = clf.feature_importances_
@@ -187,7 +219,7 @@ feature_importance = 100.0 * (feature_importance / feature_importance.max())
 sorted_idx = np.argsort(feature_importance)
 
 
-# In[13]:
+# In[14]:
 
 plt.rc('figure', figsize=(6, 4))
 pos = np.arange(sorted_idx.shape[0]) + .5
@@ -197,7 +229,7 @@ _ = plt.xlabel('Relative Importance')
 _ = plt.title('Variable Importance')
 
 
-# In[14]:
+# In[15]:
 
 featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
@@ -205,9 +237,10 @@ print([featureImportanceandNames[a] for a in sorted_idx])
 
 # #### Now load in the validation sample
 
-# In[15]:
+# In[16]:
 
 val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
+val_npInputWgt = np.array(val_df.ix[:, 'sampleWgt'])
 val_npInputList = np.array(val_df.ix[:, :'j3_QGL'])
 val_npInputAnswers = np.array(val_df.ix[:, 'answer'])
 val_npInputList_ttbar = np.array(val_df[val_df['procTypes']=='ttbar'].ix[:, :'j3_QGL'])
@@ -221,13 +254,20 @@ val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
 
 # #### The predict probability for the validation sample events
 
-# In[16]:
+# In[17]:
 
 val_output = clf.predict_proba(val_npInputList)[:,1]
 val_df['disc'] = val_output
 
 
-# In[17]:
+# In[18]:
+
+scaler.fit(val_npInputList)
+scaled_val_npInputList = scaler.transform(val_npInputList)
+val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
+
+
+# In[19]:
 
 from scipy.linalg import fractional_matrix_power
 def diagElements(m):
@@ -247,7 +287,7 @@ def plot_corrMat(corrMat_input, varNames, figs, ax):
     _=figs.colorbar(sc, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
 
 
-# In[18]:
+# In[20]:
 
 plt.rc('figure', figsize=(10, 10))
 ecv = EmpiricalCovariance()
@@ -268,14 +308,14 @@ plt.show()
 
 # #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
 
-# In[19]:
+# In[21]:
 
 get_ipython().magic("time val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)")
 
 
 # #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
-# In[20]:
+# In[22]:
 
 sr_cuts = (val_df['Njet']>=4) & (val_df['MET']>200) & (val_df['cand_dRMax']<1.5)
 baseTagger_fpr_tpr = val_df[sr_cuts].groupby(by=['answer', 'passBaseTagger'])['sampleWgt'].sum()
@@ -297,7 +337,7 @@ fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 # #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
 
-# In[21]:
+# In[23]:
 
 plt.rc('figure', figsize=(8, 6))
 
@@ -309,7 +349,12 @@ fscore = 2*precision*recall/(precision + recall)
 average_precision = average_precision_score(val_npInputAnswers_sel, val_output_sel)
 fpr, tpr, thresholds_roc = roc_curve(val_npInputAnswers_sel, val_output_sel, sample_weight=np.array(val_df.loc[sr_cuts,'sampleWgt']))
 roc_auc = auc(tpr, fpr)
-_ = plt.plot(fpr, tpr, color = 'darkorange', label = 'ROC curve (area = %0.2f)'%roc_auc)
+
+val_mlp_output_sel = val_mlp_output[np.array(sr_cuts)]
+fpr_mlp, tpr_mlp, thresholds_roc_mlp = roc_curve(val_npInputAnswers_sel, val_mlp_output_sel, sample_weight=np.array(val_df.loc[sr_cuts,'sampleWgt']))
+
+_ = plt.plot(fpr, tpr, color = 'darkorange', label = 'Random Forest')
+_ = plt.plot(fpr_mlp, tpr_mlp, color = 'green', label = 'MLP')
 _ = plt.plot([0, 1], [0, 1], color='navy', linestyle = '--')
 _ = plt.xlim([0.0, 1.0])
 _ = plt.ylim([0.0, 1.05])
@@ -357,13 +402,29 @@ print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.form
 
 # #### The probability output distribution for signal and background (selected cut value is indicated)
 
-# In[22]:
+# In[24]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
+sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
 bkg_val_output = val_output[val_npInputAnswers==0]
-y_sig, x_sig, _=plt.hist(sig_val_output, range = (0, 1.0), normed = True, color = 'red', bins = 100, histtype='step')
-y_bkg, x_bkg, _=plt.hist(bkg_val_output, range = (0, 1.0), normed = True, color = 'blue', bins = 100, histtype='step')
+bkg_val_wgt = val_npInputWgt[val_npInputAnswers==0]
+y_sig, x_sig, _=plt.hist(sig_val_output, range = (0, 1.0), weights=sig_val_wgt, normed = True, color = 'red', bins = 100, histtype='step')
+y_bkg, x_bkg, _=plt.hist(bkg_val_output, range = (0, 1.0), weights=bkg_val_wgt, normed = True, color = 'blue', bins = 100, histtype='step')
 _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy', linestyle = '--')
+plt.show()
+
+
+# In[25]:
+
+mlp_sig_val_output = val_mlp_output[val_npInputAnswers==1]
+mlp_sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
+mlp_bkg_val_output = val_mlp_output[val_npInputAnswers==0]
+mlp_bkg_val_wgt = val_npInputWgt[val_npInputAnswers==0]
+mlp_y_sig, mlp_x_sig, _=plt.hist(mlp_sig_val_output, weights=mlp_sig_val_wgt, range = (0, 1.0), normed = True, color = 'red', bins = 100, histtype='step')
+mlp_y_bkg, mlp_x_bkg, _=plt.hist(mlp_bkg_val_output, weights=mlp_bkg_val_wgt, range = (0, 1.0), normed = True, color = 'blue', bins = 100, histtype='step')
+plt.show()
+
+_=plt.plot(clf_mlp.loss_curve_)
 
 
 # #### Finally we apply both base tagger and the MVA tagger on all the validation events. However additional treatment is done to resolve the overlap where multiple tagged candiates might share the same AK4 jet(s).
@@ -400,9 +461,4 @@ val_df_taggers.head()
 # In[ ]:
 
 get_ipython().system('jupyter nbconvert --to python top_tagger.ipynb')
-
-
-# In[ ]:
-
-
 
