@@ -51,7 +51,20 @@ def get_csv(orifilename, outfilename, forceRedo = False):
 
 # In[3]:
 
+# Load the training sample
 df = get_csv('training.csv', 'dRMax_LE_1p5_m_in_100_250_training.csv')
+# Load the validation sample
+val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
+val_npInputWgt = np.array(val_df.ix[:, 'sampleWgt'])
+val_npInputList = np.array(val_df.ix[:, :'j3_QGL'])
+val_npInputAnswers = np.array(val_df.ix[:, 'answer'])
+val_npInputList_ttbar = np.array(val_df[val_df['procTypes']=='ttbar'].ix[:, :'j3_QGL'])
+val_npInputAnswers_ttbar = np.array(val_df[val_df['procTypes']=='ttbar'].ix[:, 'answer'])
+val_npInputList_zinv = np.array(val_df[val_df['procTypes']=='zinv'].ix[:, :'j3_QGL'])
+val_npInputAnswers_zinv = np.array(val_df[val_df['procTypes']=='zinv'].ix[:, 'answer'])
+val_slimNpData0_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==0]
+val_slimNpData1_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==1]
+val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
 
 
 # #### Plots of the major kinematic variables and their correlations
@@ -167,6 +180,9 @@ list_procType = (df_shuffled.ix[:, 'procTypes']).tolist()
 clf = RandomForestClassifier(n_estimators=100, max_depth=18, n_jobs=4)
 get_ipython().magic('time clf = clf.fit(npyInputData, npyInputAnswer, npyInputWgts)')
 
+val_output = clf.predict_proba(val_npInputList)[:,1]
+val_df['disc'] = val_output
+
 
 # #### Start the MLP classifier using scikit-learn package
 
@@ -174,7 +190,12 @@ get_ipython().magic('time clf = clf.fit(npyInputData, npyInputAnswer, npyInputWg
 
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import log_loss
+
 scaler = StandardScaler()
+
+_=scaler.fit(val_npInputList)
+scaled_val_npInputList = scaler.transform(val_npInputList)
 
 sel_sig_npyInputData = npyInputData[npyInputAnswer==1]
 sel_bkg_npyInputData = npyInputData[npyInputAnswer==0]
@@ -190,13 +211,29 @@ perms = np.random.permutation(sel_npyInputData.shape[0])
 sel_npyInputData = sel_npyInputData[perms]
 sel_npyInputAnswer = sel_npyInputAnswer[perms]
 
-scaler.fit(sel_npyInputData)
+_=scaler.fit(sel_npyInputData)
 scaled_npyInputData = scaler.transform(sel_npyInputData)
 
 clf_mlp = MLPClassifier(solver='adam', hidden_layer_sizes=(8, 8), alpha=1e-5, random_state=1, learning_rate='adaptive', max_iter=1000)
 get_ipython().magic('time clf_mlp.fit(scaled_npyInputData, sel_npyInputAnswer)')
 clf_mlp.loss_
 clf_mlp.score(scaled_npyInputData, sel_npyInputAnswer)
+#clf_mlp = MLPClassifier(solver='adam', hidden_layer_sizes=(8, 8), max_iter=1, warm_start=True, alpha=1e-5, random_state=1, learning_rate='adaptive')
+#maxIter_mlp = 100
+#trn_mlp_loss = []
+#val_mlp_loss = []
+#trn_mlp_loss_alt = []
+#for i in range(maxIter_mlp):
+#    _=clf_mlp.fit(scaled_npyInputData, sel_npyInputAnswer)
+#    trn_mlp_loss.append(clf_mlp.loss_)
+#    trn_mlp_pred_proba_step = clf_mlp.predict_proba(scaled_npyInputData)[:, 1]
+#    trn_mlp_loss_alt.append(log_loss(sel_npyInputAnswer, trn_mlp_pred_proba_step))
+#    val_mlp_pred_proba_step = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
+#    val_mlp_loss.append(log_loss(val_npInputAnswers, val_mlp_pred_proba_step))  
+val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
+#trn_mlp_loss
+#trn_mlp_loss_alt
+#val_mlp_loss
 
 
 # #### Save the trained results into pickle file (for future re-use)
@@ -235,39 +272,22 @@ featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
 
 
-# #### Now load in the validation sample
+# #### The predict probability for the validation sample events
 
 # In[16]:
 
-val_df = get_csv('validation.csv', 'dRMax_LE_1p5_m_in_100_250_validation.csv')
-val_npInputWgt = np.array(val_df.ix[:, 'sampleWgt'])
-val_npInputList = np.array(val_df.ix[:, :'j3_QGL'])
-val_npInputAnswers = np.array(val_df.ix[:, 'answer'])
-val_npInputList_ttbar = np.array(val_df[val_df['procTypes']=='ttbar'].ix[:, :'j3_QGL'])
-val_npInputAnswers_ttbar = np.array(val_df[val_df['procTypes']=='ttbar'].ix[:, 'answer'])
-val_npInputList_zinv = np.array(val_df[val_df['procTypes']=='zinv'].ix[:, :'j3_QGL'])
-val_npInputAnswers_zinv = np.array(val_df[val_df['procTypes']=='zinv'].ix[:, 'answer'])
-val_slimNpData0_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==0]
-val_slimNpData1_ttbar = val_npInputList_ttbar[val_npInputAnswers_ttbar==1]
-val_slimNpData_zinv = val_npInputList_zinv[val_npInputAnswers_zinv==0]
+#val_output = clf.predict_proba(val_npInputList)[:,1]
+#val_df['disc'] = val_output
 
-
-# #### The predict probability for the validation sample events
 
 # In[17]:
 
-val_output = clf.predict_proba(val_npInputList)[:,1]
-val_df['disc'] = val_output
+#scaler.fit(val_npInputList)
+#scaled_val_npInputList = scaler.transform(val_npInputList)
+#val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
 
 
 # In[18]:
-
-scaler.fit(val_npInputList)
-scaled_val_npInputList = scaler.transform(val_npInputList)
-val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
-
-
-# In[19]:
 
 from scipy.linalg import fractional_matrix_power
 def diagElements(m):
@@ -287,7 +307,7 @@ def plot_corrMat(corrMat_input, varNames, figs, ax):
     _=figs.colorbar(sc, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
 
 
-# In[20]:
+# In[19]:
 
 plt.rc('figure', figsize=(10, 10))
 ecv = EmpiricalCovariance()
@@ -308,14 +328,14 @@ plt.show()
 
 # #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
 
-# In[21]:
+# In[20]:
 
 get_ipython().magic("time val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)")
 
 
 # #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
-# In[22]:
+# In[21]:
 
 sr_cuts = (val_df['Njet']>=4) & (val_df['MET']>200) & (val_df['cand_dRMax']<1.5)
 baseTagger_fpr_tpr = val_df[sr_cuts].groupby(by=['answer', 'passBaseTagger'])['sampleWgt'].sum()
@@ -337,7 +357,7 @@ fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 # #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
 
-# In[23]:
+# In[22]:
 
 plt.rc('figure', figsize=(8, 6))
 
@@ -402,7 +422,7 @@ print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.form
 
 # #### The probability output distribution for signal and background (selected cut value is indicated)
 
-# In[24]:
+# In[23]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
 sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
@@ -414,7 +434,7 @@ _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy',
 plt.show()
 
 
-# In[25]:
+# In[24]:
 
 mlp_sig_val_output = val_mlp_output[val_npInputAnswers==1]
 mlp_sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
@@ -461,4 +481,9 @@ val_df_taggers.head()
 # In[ ]:
 
 get_ipython().system('jupyter nbconvert --to python top_tagger.ipynb')
+
+
+# In[ ]:
+
+
 
