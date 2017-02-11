@@ -84,7 +84,7 @@ for iy in range(nfig_y):
         _=axes[iy, ix].legend(loc='best', fontsize='xx-small')
 
 
-# The scatter plots are useful to see the correlations but in general the multivariate analysis can handle well the correlations 
+# The scatter plots are useful to see the correlations. Since there are correlations between variables, one expects neural network does better than decision trees.
 
 # In[5]:
 
@@ -231,14 +231,100 @@ clf_mlp.score(scaled_npyInputData, sel_npyInputAnswer)
 #    val_mlp_pred_proba_step = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
 #    val_mlp_loss.append(log_loss(val_npInputAnswers, val_mlp_pred_proba_step))  
 val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
-#trn_mlp_loss
-#trn_mlp_loss_alt
-#val_mlp_loss
 
 
-# #### Save the trained results into pickle file (for future re-use)
+# #### My own MLP building using tensorflow. Here I try the MLP with three hidden layers.
 
 # In[12]:
+
+import tensorflow as tf
+
+tf_inputs = scaled_npyInputData
+tf_answers = sel_npyInputAnswer.astype(int)
+tf_max_class_order = np.max(tf_answers)
+tf_one_hot_answers = np.eye(tf_max_class_order+1)[tf_answers]
+
+tf_val_inputs = scaled_val_npInputList
+tf_val_answers = val_npInputAnswers.astype(int)
+tf_val_one_hot_answers = np.eye(tf_max_class_order+1)[tf_val_answers]
+
+n_nodes_hl1 = 8
+n_nodes_hl2 = 8
+n_nodes_hl3 = 8
+
+tf_n_inputs = tf_inputs.shape[1]
+tf_n_classes = tf_one_hot_answers.shape[1]
+
+tf_batch_size = 100
+tf_n_epochs = 500
+
+tf_x = tf.placeholder('float', [None, tf_n_inputs])
+tf_y = tf.placeholder('float')
+
+def neural_network_model(data):
+    hidden_1_layer = {'weights': tf.Variable(tf.random_normal([tf_n_inputs, n_nodes_hl1])), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl1]))}
+    hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl2]))}    
+    hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl3]))}
+    output_layer = {'weights':tf.Variable(tf.random_normal([n_nodes_hl3, tf_n_classes])), 
+                    'biases':tf.Variable(tf.random_normal([tf_n_classes]))}
+    
+    l1 = tf.add(tf.matmul(data, hidden_1_layer['weights']), hidden_1_layer['biases'])
+    l1 = tf.nn.relu(l1)
+    
+    l2 = tf.add(tf.matmul(l1, hidden_2_layer['weights']), hidden_2_layer['biases'])
+    l2 = tf.nn.relu(l2)
+    
+    l3 = tf.add(tf.matmul(l2, hidden_3_layer['weights']), hidden_3_layer['biases'])
+    l3 = tf.nn.relu(l3)
+    
+    output = tf.matmul(l3, output_layer['weights']) + output_layer['biases']
+#    output = tf.matmul(l2, output_layer['weights']) + output_layer['biases']
+
+    output = tf.nn.softmax(output)
+    
+    return output
+
+def train_neural_network(x):
+    tf_prediction = neural_network_model(x)
+    tf_cost = tf.reduce_mean( tf.nn.softmax_cross_entropy_with_logits(tf_prediction, tf_y) )
+    tf_optimizer = tf.train.AdamOptimizer().minimize(tf_cost)
+    
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+
+        for epoch in range(tf_n_epochs):
+            epoch_loss = 0
+            split_inputs = np.array_split(tf_inputs, tf_batch_size)
+            split_answers = np.array_split(tf_one_hot_answers, tf_batch_size)
+            for ib in range(len(split_inputs)):
+                batch_x, batch_y = split_inputs[ib], split_answers[ib]
+                _, c = sess.run([tf_optimizer, tf_cost], feed_dict={tf_x:batch_x, tf_y:batch_y})
+                epoch_loss += c
+            if epoch ==0 or epoch%(int(tf_n_epochs/10))==0 or epoch == tf_n_epochs-1:
+                print('Epoch', epoch, 'completed out of',tf_n_epochs,'loss:',epoch_loss)
+
+        tf_correct = tf.equal(tf.argmax(tf_prediction, 1), tf.argmax(tf_y, 1))
+
+        tf_accuracy = tf.reduce_mean(tf.cast(tf_correct, 'float'))
+        print('Accuracy Trn: {}  Accuracy Val : {}'.format(tf_accuracy.eval({tf_x:tf_inputs, tf_y:tf_one_hot_answers}), 
+              tf_accuracy.eval({tf_x:tf_val_inputs, tf_y:tf_val_one_hot_answers})))
+
+#        tf_eval_pred = tf.argmax(tf_prediction, 1)
+        tf_eval_pred = tf_prediction
+        val_tf_output = tf_eval_pred.eval(feed_dict={tf_x:tf_val_inputs})
+        print("predictions", val_tf_output)
+        
+        return val_tf_output
+        
+val_tf_output = train_neural_network(tf_x)
+
+
+# #### Save the Random Forest trained results into pickle file (for future re-use). This can be done similarly for the MLP scikit-learn results.
+
+# In[13]:
 
 fileObject = open("TrainingOutput.pkl",'wb')
 out = pickle.dump(clf, fileObject)
@@ -247,7 +333,7 @@ fileObject.close()
 
 # #### Look at the feature importance of the input variables
 
-# In[13]:
+# In[14]:
 
 listToGet = df_shuffled.columns[:df_shuffled.columns.get_loc('j3_QGL')+1]
 feature_importance = clf.feature_importances_
@@ -256,7 +342,7 @@ feature_importance = 100.0 * (feature_importance / feature_importance.max())
 sorted_idx = np.argsort(feature_importance)
 
 
-# In[14]:
+# In[15]:
 
 plt.rc('figure', figsize=(6, 4))
 pos = np.arange(sorted_idx.shape[0]) + .5
@@ -266,28 +352,15 @@ _ = plt.xlabel('Relative Importance')
 _ = plt.title('Variable Importance')
 
 
-# In[15]:
+# In[16]:
 
 featureImportanceandNames = list(zip(feature_names, feature_importance))
 print([featureImportanceandNames[a] for a in sorted_idx])
 
 
-# #### The predict probability for the validation sample events
-
-# In[16]:
-
-#val_output = clf.predict_proba(val_npInputList)[:,1]
-#val_df['disc'] = val_output
-
+# #### The predict correlation covariance matrix for the Random Forest training.
 
 # In[17]:
-
-#scaler.fit(val_npInputList)
-#scaled_val_npInputList = scaler.transform(val_npInputList)
-#val_mlp_output = clf_mlp.predict_proba(scaled_val_npInputList)[:, 1]
-
-
-# In[18]:
 
 from scipy.linalg import fractional_matrix_power
 def diagElements(m):
@@ -307,7 +380,7 @@ def plot_corrMat(corrMat_input, varNames, figs, ax):
     _=figs.colorbar(sc, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
 
 
-# In[19]:
+# In[18]:
 
 plt.rc('figure', figsize=(10, 10))
 ecv = EmpiricalCovariance()
@@ -326,16 +399,16 @@ figs.tight_layout()
 plt.show()
 
 
-# #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables. Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
+# #### We have a base tagger used in the past. It's a simple tagger with squared cuts on some basic kinematic variables (loaded from the [baseTagger.py](baseTagger) file). Now we use it as a reference to find the improvement of the MVA training. Note that one of the feature the base tagger was it's high recall which is what we'd like to keep.
 
-# In[20]:
+# In[19]:
 
 get_ipython().magic("time val_df['passBaseTagger'] = val_df.apply(baseTaggerReqs, axis=1)")
 
 
 # #### Some selections "sr_cuts" to ensure we have the events we are actually interested in. We then calculate various metrics for the base tagger.
 
-# In[21]:
+# In[20]:
 
 sr_cuts = (val_df['Njet']>=4) & (val_df['MET']>200) & (val_df['cand_dRMax']<1.5)
 baseTagger_fpr_tpr = val_df[sr_cuts].groupby(by=['answer', 'passBaseTagger'])['sampleWgt'].sum()
@@ -355,9 +428,10 @@ fscore_base = 2*precision_base*recall_base/(precision_base+recall_base)
 fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 
-# #### The roc plot and others for the trained results on the validation sample. We scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
+# #### The roc plot and others for the trained results on the validation sample. For the Random Forest results, we scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
+# #### From the ROC, we can see that the MLP result is better than the Random Forest. In my own simple configuration of the MLP using tensorflow, I get slightly better result than the Random Forest for some regions. Clearly, my simple MLP can be further improved. 
 
-# In[22]:
+# In[21]:
 
 plt.rc('figure', figsize=(8, 6))
 
@@ -373,8 +447,12 @@ roc_auc = auc(tpr, fpr)
 val_mlp_output_sel = val_mlp_output[np.array(sr_cuts)]
 fpr_mlp, tpr_mlp, thresholds_roc_mlp = roc_curve(val_npInputAnswers_sel, val_mlp_output_sel, sample_weight=np.array(val_df.loc[sr_cuts,'sampleWgt']))
 
+val_tf_output_sel = val_tf_output[:, 1][np.array(sr_cuts)]
+fpr_tf, tpr_tf, thresholds_roc_tf = roc_curve(val_npInputAnswers_sel, val_tf_output_sel, sample_weight=np.array(val_df.loc[sr_cuts,'sampleWgt']))
+
 _ = plt.plot(fpr, tpr, color = 'darkorange', label = 'Random Forest')
 _ = plt.plot(fpr_mlp, tpr_mlp, color = 'green', label = 'MLP')
+_ = plt.plot(fpr_tf, tpr_tf, color = 'red', label = 'Tensorflow')
 _ = plt.plot([0, 1], [0, 1], color='navy', linestyle = '--')
 _ = plt.xlim([0.0, 1.0])
 _ = plt.ylim([0.0, 1.05])
@@ -422,7 +500,7 @@ print('mva (max_fscore) fscore : {}  precision : {}  recall : {}  cut : {}'.form
 
 # #### The probability output distribution for signal and background (selected cut value is indicated)
 
-# In[23]:
+# In[22]:
 
 sig_val_output = val_output[val_npInputAnswers==1]
 sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
@@ -434,7 +512,7 @@ _=plt.plot([mva_cut, mva_cut], [0, max(y_sig.max(), y_bkg.max())], color='navy',
 plt.show()
 
 
-# In[24]:
+# In[23]:
 
 mlp_sig_val_output = val_mlp_output[val_npInputAnswers==1]
 mlp_sig_val_wgt = val_npInputWgt[val_npInputAnswers==1]
