@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# ### This is notebook of development of a top tagger using scikit-learn and pandas
+# ### This is notebook of development of a top tagger using scikit-learn, tensorflow and pandas
 
 # In[1]:
 
@@ -248,28 +248,34 @@ tf_val_inputs = scaled_val_npInputList
 tf_val_answers = val_npInputAnswers.astype(int)
 tf_val_one_hot_answers = np.eye(tf_max_class_order+1)[tf_val_answers]
 
-n_nodes_hl1 = 8
-n_nodes_hl2 = 8
+n_nodes_hl1 = 10
+n_nodes_hl2 = 10
 n_nodes_hl3 = 8
 
 tf_n_inputs = tf_inputs.shape[1]
 tf_n_classes = tf_one_hot_answers.shape[1]
 
-tf_batch_size = 100
-tf_n_epochs = 500
+tf_batch_size = 200
+tf_n_epochs = 1000
+
+beta = 1e-5
+#learning_rate = 1e-3
+learning_rate = 5e-3
 
 tf_x = tf.placeholder('float', [None, tf_n_inputs])
 tf_y = tf.placeholder('float')
 
 def neural_network_model(data):
-    hidden_1_layer = {'weights': tf.Variable(tf.random_normal([tf_n_inputs, n_nodes_hl1])), 
-                      'biases':tf.Variable(tf.random_normal([n_nodes_hl1]))}
-    hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])), 
-                      'biases':tf.Variable(tf.random_normal([n_nodes_hl2]))}    
-    hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])), 
-                      'biases':tf.Variable(tf.random_normal([n_nodes_hl3]))}
-    output_layer = {'weights':tf.Variable(tf.random_normal([n_nodes_hl3, tf_n_classes])), 
-                    'biases':tf.Variable(tf.random_normal([tf_n_classes]))}
+    hidden_1_layer = {'weights': tf.Variable(tf.random_normal([tf_n_inputs, n_nodes_hl1], seed=1)), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl1], seed=2))}
+    hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2], seed=3)), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl2], seed=4))}    
+    hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3], seed=5)), 
+                      'biases':tf.Variable(tf.random_normal([n_nodes_hl3], seed=6))}
+    output_layer = {'weights':tf.Variable(tf.random_normal([n_nodes_hl3, tf_n_classes], seed=7)), 
+                    'biases':tf.Variable(tf.random_normal([tf_n_classes], seed=8))}
+    
+    nn_layers = [hidden_1_layer, hidden_2_layer, hidden_3_layer, output_layer]
     
     l1 = tf.add(tf.matmul(data, hidden_1_layer['weights']), hidden_1_layer['biases'])
     l1 = tf.nn.relu(l1)
@@ -283,14 +289,16 @@ def neural_network_model(data):
     output = tf.matmul(l3, output_layer['weights']) + output_layer['biases']
 #    output = tf.matmul(l2, output_layer['weights']) + output_layer['biases']
 
-    output = tf.nn.softmax(output)
-    
-    return output
+    return output, nn_layers
 
 def train_neural_network(x):
-    tf_prediction = neural_network_model(x)
-    tf_cost = tf.reduce_mean( tf.nn.softmax_cross_entropy_with_logits(tf_prediction, tf_y) )
-    tf_optimizer = tf.train.AdamOptimizer().minimize(tf_cost)
+    tf_prediction, nn_layers = neural_network_model(x)
+    tf_cost = tf.reduce_mean( tf.nn.softmax_cross_entropy_with_logits(tf_prediction, tf_y)
+                             + beta * tf.nn.l2_loss(nn_layers[0]['weights'])
+                             + beta * tf.nn.l2_loss(nn_layers[1]['weights'])
+                             + beta * tf.nn.l2_loss(nn_layers[2]['weights'])
+                             + beta * tf.nn.l2_loss(nn_layers[3]['weights']) )
+    tf_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(tf_cost)
     
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -304,7 +312,7 @@ def train_neural_network(x):
                 _, c = sess.run([tf_optimizer, tf_cost], feed_dict={tf_x:batch_x, tf_y:batch_y})
                 epoch_loss += c
             if epoch ==0 or epoch%(int(tf_n_epochs/10))==0 or epoch == tf_n_epochs-1:
-                print('Epoch', epoch, 'completed out of',tf_n_epochs,'loss:',epoch_loss)
+                print('Epoch', epoch, 'completed out of',tf_n_epochs,'loss:',epoch_loss/tf_batch_size)
 
         tf_correct = tf.equal(tf.argmax(tf_prediction, 1), tf.argmax(tf_y, 1))
 
@@ -313,13 +321,13 @@ def train_neural_network(x):
               tf_accuracy.eval({tf_x:tf_val_inputs, tf_y:tf_val_one_hot_answers})))
 
 #        tf_eval_pred = tf.argmax(tf_prediction, 1)
-        tf_eval_pred = tf_prediction
+        tf_eval_pred = tf.nn.softmax(tf_prediction)
         val_tf_output = tf_eval_pred.eval(feed_dict={tf_x:tf_val_inputs})
         print("predictions", val_tf_output)
         
         return val_tf_output
         
-val_tf_output = train_neural_network(tf_x)
+get_ipython().magic('time val_tf_output = train_neural_network(tf_x)')
 
 
 # #### Save the Random Forest trained results into pickle file (for future re-use). This can be done similarly for the MLP scikit-learn results.
@@ -429,7 +437,7 @@ fpr_base, tpr_base, precision_base, recall_base, fscore_base
 
 
 # #### The roc plot and others for the trained results on the validation sample. For the Random Forest results, we scan the fpr and tpr to find a cut on the output probablity value where we get same recall as the base tagger but reduced fpr. 
-# #### From the ROC, we can see that the MLP result is better than the Random Forest. In my own simple configuration of the MLP using tensorflow, I get slightly better result than the Random Forest for some regions. Clearly, my simple MLP can be further improved. 
+# #### From the ROC, we can see that the MLP result is better than the Random Forest. In my own configuration of the MLP (3 hidden layers) using tensorflow, I get slightly better result than the 2-hidden-layer MLP implemenation in scikit-learn for some regions. It seems the 2-hidden-layer MLP can already exploit much of the information with the feeded in high level variables. Deep neural network with lower level information (detector hits) could improve further.
 
 # In[21]:
 
