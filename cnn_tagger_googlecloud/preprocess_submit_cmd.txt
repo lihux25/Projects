@@ -1,0 +1,25 @@
+setenv PROJECT `gcloud config list project --format "value(core.project)"` 
+setenv JOB_ID "preprocess-jetimage-$USER""-"`date +%Y%m%d-%H%M%S`
+setenv BUCKET "gs://jetimage-tfrecords"
+
+python trainer/preprocess.py \
+      --input "gs://jetimage-source-files/filenames_gcloud_train.csv" \
+      --output_path $BUCKET/v2/train \
+      --output "prod_from_beam" \
+      --project $PROJECT \
+      --runner DataflowRunner \
+      --job_name $JOB_ID"-train" \
+      --staging_location $BUCKET/staging_train \
+      --temp_location $BUCKET/temp_train \
+      --num_workers 10
+
+python trainer/preprocess.py \
+      --input "gs://jetimage-source-files/filenames_gcloud_test.csv" \
+      --output_path $BUCKET/v2/test \
+      --output "prod_from_beam" \
+      --project $PROJECT \
+      --runner DataflowRunner \
+      --job_name $JOB_ID"-test" \
+      --staging_location $BUCKET/staging_test \
+      --temp_location $BUCKET/temp_test \
+      --num_workers 10

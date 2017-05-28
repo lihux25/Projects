@@ -1,0 +1,21 @@
+rm -fr test_local_training
+
+# In the trainer directory, there must be a __init__.py (can be empty)
+gcloud ml-engine local train --package-path trainer \
+                           --module-name trainer.task \
+                           -- \
+                           --train-file-pattern 'trainer/jetimage-tfrecords/v2/train/prod_from_beam-*.tfrecords.gz' \
+                           --eval-file-pattern 'trainer/jetimage-tfrecords/v2/test/prod_from_beam-*.tfrecords.gz' \
+                           --job-dir test_local_training
+
+## For local testing of distributed training
+#gcloud ml-engine local train --package-path trainer \
+#                           --module-name trainer.task \
+#                           --parameter-server-count 2 \
+#                           --worker-count 4 \
+#                           --distributed \
+#                           -- \
+#                           --train-file-pattern 'trainer/jetimage-tfrecords/v2/train/prod_from_beam-*.tfrecords.gz' \
+#                           --eval-file-pattern 'trainer/jetimage-tfrecords/v2/test/prod_from_beam-*.tfrecords.gz' \
+#                           --job-dir test_local_training \
+#                           --num-epochs 10000

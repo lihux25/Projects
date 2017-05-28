@@ -1,0 +1,24 @@
+setenv PROJECT `gcloud config list project --format "value(core.project)"` 
+setenv JOB_ID "train_cnn_tagger_$USER""_"`date +%Y%m%d_%H%M%S`
+setenv SOURCE_BUCKET "gs://jetimage-tfrecords"
+
+## These are for single node training using Cloud ML Engine
+#setenv OUTPUT_BUCKET "gs://cnn-tagger""/try"
+#setenv SCALE_TIER BASIC
+
+## These are for distributed node training using Cloud ML Engine
+setenv OUTPUT_BUCKET "gs://cnn-tagger""/distributed-try-10K-epochs"
+setenv SCALE_TIER STANDARD_1
+
+gcloud ml-engine jobs submit training $JOB_ID \
+                                    --stream-logs \
+                                    --scale-tier $SCALE_TIER \
+                                    --job-dir $OUTPUT_BUCKET \
+                                    --package-path trainer \
+                                    --module-name trainer.task \
+                                    --region us-central1 \
+                                    -- \
+                                    --train-file-pattern "$SOURCE_BUCKET/v2/train/prod_from_beam-*.tfrecords.gz" \
+                                    --eval-file-pattern  "$SOURCE_BUCKET/v2/test/prod_from_beam-*.tfrecords.gz" \
+                                    --num-epochs 10000
+
