@@ -1,6 +1,6 @@
 # Predicting a W Boson Object Using a Convolutional Neural Network and Google Cloud Platform
 
-(WORK IN PROGRESS)
+(WORK IN PROGRESS for the README file...)
 
 ## The original data and my goal
  * What we get from the CMS detector?
