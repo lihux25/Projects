@@ -13,11 +13,11 @@
  * Distributed training and hyper-parameter tuning
  * Quick build-up of the CNN and training pipeline
  
-## The data pre-processing pipeline
+## Data pre-processing pipeline
 <img src="images/preprocess_pipeline.png" width="250">
 
-## The CNN network
+## CNN network
 <img src="images/cnn_training.png" width="600">
 
-## The hyper-parameter tuning
+## Hyper-parameter tuning
 <img src="images/hptuning.png" width="600">
