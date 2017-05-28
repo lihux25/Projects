@@ -1,5 +1,7 @@
 # Predicting a W Boson Object Using a Convolutional Neural Network and Google Cloud Platform
 
+(WORK IN PROGRESS)
+
 ## The original data and my goal
  * What we get from the CMS detector?
  * What we have in the data?
@@ -12,7 +14,10 @@
  * Quick build-up of the CNN and training pipeline
  
 ## The data pre-processing pipeline
-![pipeline from Google Cloud dataflow](images/preprocess_pipeline.png)
+<img src="images/preprocess_pipeline.png" width="250">
+
 ## The CNN network
+<img src="images/cnn_training.png" width="600">
 
 ## The hyper-parameter tuning
+<img src="images/hptuning.png" width="600">
