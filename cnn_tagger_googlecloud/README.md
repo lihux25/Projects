@@ -18,10 +18,24 @@
  * I use high level tensorflow and Keras API to quickly build the network and training pipeline.
  
 ## Data pre-processing pipeline
+ * The data pre-processing is done using Google Cloud Dataflow service with the Beam framework. The source files (in npy format) are copied to a Google Cloud Storage bucket gs://jetimage-source-files/ and divided into train and test parts.
+ * Two csv files are used to compile all the file location in Google Cloud Storage bucket and some label/notation information:
+	* gs://jetimage-source-files/filenames\_gcloud\_train.csv
+	* gs://jetimage-source-files/filenames\_gcloud\_test.csv
+ * The output files in compressed tfrecords format are in gs://jetimage-tfrecords bucket
+ * The pipeline is defined in the [preprocess.py](trainer/preprocess.py) file in Beam framework. The major parts in the pipeline is to apply selection cuts and assign correct labels (the ReadFileAndConvert function), convert the raw information in particles to an image (the ProcessImage function), and convert the image (in numpy array) to tfrecords (the TFExampleFromImage function) so that they can be used by the ML Engine as input. The flow chart can be viewed as follows:
+ 
 <img src="images/preprocess_pipeline.png" width="250">
 
-## CNN network
+## Covnet definition and training
+ * The definition of the model is [model.py](trainer/model.py). Function build_conv_model uses Keras API to define the whole Covnet structure with 3 tuning parameters. The build_read_and_decode_fn provides input batchs with images and labels for both training and testing. The model_fn define the loss, optimization method and evaluation metrics. 
+ * In the [task.py](trainer/task.py) file, build a tf.contrib.learn.Experiment to handle the training and evaluation loops for distributed training.
+ * The training results are stored in gs://cnn-tagger/* including the exported model.
+ * The structure of the Covnet and training flow chart is extracted from the tensorboard monitor below.
+ 
 <img src="images/cnn_training.png" width="600">
 
 ## Hyper-parameter tuning
+ * For a simple case, I only tune the learning_rate which is one of the most important hyper-parameters to tune. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
+ * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.0005 (yellow line) which provide an improved accuracy!
 <img src="images/hptuning.png" width="600">
