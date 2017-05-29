@@ -1,4 +1,4 @@
-# Predicting a W Boson Physics Object Using a Convolutional Neural Network and Google Cloud Platform
+# Predicting a W Boson Particle Using a Convolutional Neural Network and Google Cloud Platform
 
 (WORK IN PROGRESS for the README file...)
 
