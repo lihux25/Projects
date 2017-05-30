@@ -196,7 +196,7 @@ def model_fn(input_images, input_targets, mode, params):
     correct_prediction = tf.equal(tf.argmax(logits,1), tf.argmax(targets,1))    
         
     predictions_dict = {
-        'classes': tf.argmax(input=logits, axis=1, name='logits_tensor'),
+        'classes': tf.cast(tf.argmax(input=logits, axis=1, name='logits_tensor'), tf.int32),
         'probabilities': predictions,
         'accuracy': tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy_tensor')
     }

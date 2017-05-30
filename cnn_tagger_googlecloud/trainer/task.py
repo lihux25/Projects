@@ -52,9 +52,17 @@ def generate_experiment_fn(train_file_pattern,
         train_input_fn = model.build_read_and_decode_fn(train_file_pattern, batch_size, shuffle, tfrecord_compress_type)
         eval_input_fn = model.build_read_and_decode_fn(eval_file_pattern, batch_size, shuffle, tfrecord_compress_type)
 
-        tensors_to_log = {'accuracy': 'accuracy_tensor'}
+        # The tensors will be printed to the log, with INFO severity.
+        tensors_to_log = {'accuracy_train': 'accuracy_tensor'}
         logging_hook = tf.train.LoggingTensorHook(
                                 tensors=tensors_to_log, every_n_iter=check_n_iter)
+
+        eval_metric_add = {
+            'training/hptuning/metric':  tf.contrib.learn.MetricSpec(
+                            metric_fn=tf.contrib.metrics.streaming_accuracy,
+                            prediction_key="classes"
+                        ),
+        }
     
         estimator = tf.contrib.learn.Estimator(
             model_fn=model.model_fn,
@@ -70,6 +78,7 @@ def generate_experiment_fn(train_file_pattern,
             train_steps = num_epochs,
             eval_steps = eval_steps,
             train_monitors = [logging_hook],
+            eval_metrics = eval_metric_add,
             export_strategies = [
                 saved_model_export_utils.make_export_strategy(
                 model.predict_input_fn,
