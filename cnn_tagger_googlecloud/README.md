@@ -38,15 +38,16 @@
 </p>
 
 ## Hyper-parameter tuning
- * For a simple case, I show the tuning of the learning_rate which is one of the most important hyper-parameters. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
+ * For a simple example, I show the tuning of the learning_rate which is one of the most important hyper-parameters. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
  * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.0005 (yellow line) which provides an improved accuracy!
 <p align="center">
 <img src="images/hptuning.png" width="600">
 </p>
+
  * After couple of other tuning of the various parameters, I end up with accuracy over 90% which improves from around 84% accuracy using some initial values.
 
 ## Prediction Service
- * The production level version (v1) of training results are located at gs://cnn-tagger/prod-v1 bucket. The exported model is gs://cnn-tagger/prod-v1/export/Servo/1496207134.
+ * The production level version (v1) of training results are located at gs://cnn-tagger/prod-v1 bucket. The exported model is in gs://cnn-tagger/prod-v1/export/Servo/1496207134.
  * I setup a prediction service and run an online prediction for 10 examples in this [json](predict_test_more.json) file. The output is the following:
    <pre>
 	[0.9843168258666992, 0.01568314991891384]
