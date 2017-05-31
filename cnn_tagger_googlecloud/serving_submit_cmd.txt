@@ -1,0 +1,11 @@
+setenv MODEL_NAME cnn_tagger
+
+gcloud ml-engine models create $MODEL_NAME --regions us-central1
+
+setenv MODEL_BINARIES gs://cnn-tagger/prod-v1/export/Servo/1496207134
+
+gcloud ml-engine versions create v1 --model $MODEL_NAME --origin $MODEL_BINARIES
+
+gcloud ml-engine models list
+
+gcloud ml-engine predict --model $MODEL_NAME --version v1 --json-instances predict_test_more.json

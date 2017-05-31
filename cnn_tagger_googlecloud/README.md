@@ -39,3 +39,22 @@
  * For a simple case, I only tune the learning_rate which is one of the most important hyper-parameters to tune. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
  * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.0005 (yellow line) which provide an improved accuracy!
 <img src="images/hptuning.png" width="600">
+ * After couple of other tuning of the various parameters, I end up with accuracy over 90% which improves from around 84% accuracy using some initial values.
+
+## Prediction Service
+ * The production level version of training results are located at gs://cnn-tagger/prod-v1 bucket. The exported model is gs://cnn-tagger/prod-v1/export/Servo/1496207134.
+ * I setup a prediction service and run an online prediction for 10 examples in this [json](predict_test_more.json) file. The output is the following:
+   <pre>
+	[0.9843168258666992, 0.01568314991891384]
+	[0.9562500715255737, 0.04374995082616806]
+	[0.8877395391464233, 0.11226039379835129]
+	[0.4262990355491638, 0.5737009644508362]
+	[0.9478381276130676, 0.052161894738674164]
+	[0.7467820048332214, 0.2532179653644562]
+	[0.4128965139389038, 0.5871034860610962]
+	[0.9525721073150635, 0.04742792248725891]
+	[0.9301067590713501, 0.06989321857690811]
+	[0.9325234293937683, 0.06747651845216751]
+   </pre>
+   where the output are probablities to be 0 (noise background) or 1 (signal object). And the predicted class of each sample is exactly what we expect.
+
