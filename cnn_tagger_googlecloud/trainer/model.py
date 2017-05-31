@@ -137,18 +137,20 @@ def build_conv_model(inputs, params):
     num_filters = params['num_filters']
     dropout_prob = params['dropout_prob']
     dense_layer1_size = params['dense_layer1_size']
+    filter_size = params['filter_size']
+    pool_size = params['pool_size']
     
     model.add(InputLayer(input_tensor=inputs))
-    model.add(Conv2D(num_filters, (5, 5), activation='relu', padding='same'))
-    model.add(MaxPooling2D(pool_size=(3, 3)))
+    model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
+    model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
     
-    model.add(Conv2D(num_filters, (3, 3), activation='relu', padding='same'))
-    model.add(MaxPooling2D(pool_size=(3, 3)))
+    model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
+    model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
 
-    model.add(Conv2D(num_filters, (3, 3), activation='relu', padding='same'))
-    model.add(MaxPooling2D(pool_size=(3, 3)))
+    model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
+    model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
 
     model.add(Flatten())

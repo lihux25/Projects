@@ -163,10 +163,24 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
+        '--filter-size',
+        help='Size of the filters in the convolutional layers',
+        type=int,
+        default=5
+    )
+
+    parser.add_argument(
+        '--pool-size',
+        help='Size of the pooling layers',
+        type=int,
+        default=3
+    )
+
+    parser.add_argument(
         '--dropout-prob',
         help='dropout layer probability',
         type=float,
-        default=0.20
+        default=0.10
     )
 
     parser.add_argument(
@@ -215,7 +229,9 @@ if __name__ == '__main__':
                     'learning_rate': arguments.pop('learning_rate'),
                     'num_filters': arguments.pop('num_filters'),
                     'dropout_prob': arguments.pop('dropout_prob'),
-                    'dense_layer1_size': arguments.pop('dense_layer1_size')
+                    'dense_layer1_size': arguments.pop('dense_layer1_size'),
+                    'filter_size': arguments.pop('filter_size'),
+                    'pool_size': arguments.pop('pool_size'),
                    }
 
     print('model_params : {}'.format(model_params))
