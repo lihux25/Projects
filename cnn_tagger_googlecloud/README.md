@@ -1,4 +1,4 @@
-# Predicting a W Boson Particle Using a Convolutional Neural Network and Google Cloud Platform
+# Identifying a Particle Using Convolutional Neural Network and Google Cloud Platform
 
 ## The data and my goal
  * What do we get from the CMS detector?
