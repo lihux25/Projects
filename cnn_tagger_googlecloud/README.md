@@ -39,7 +39,7 @@
 
 ## Hyper-parameter tuning
  * As a simple example, I show the tuning of the learning_rate which is one of the most important hyper-parameters. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
- * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.000786 (orange line) which provides an improved accuracy!
+ * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.000786 (orange line) which provides an improved accuracy! (Note that the 5 values tried are [0.003, 0.00001, 0.10, 0.00051, 0.000786].)
 
 <p align="center">
 <img src="images/hptuning.png" width="1200">
