@@ -21,34 +21,35 @@
 	* gs://jetimage-source-files/filenames\_gcloud\_train.csv
 	* gs://jetimage-source-files/filenames\_gcloud\_test.csv
  * The output files in compressed tfrecords format are in gs://jetimage-tfrecords bucket
- * The pipeline is defined in the [preprocess.py](trainer/preprocess.py) file in Beam framework. The major parts in the pipeline is to apply selection cuts and assign correct labels (the ReadFileAndConvert function), convert the raw information in particles to an image (the ProcessImage function), and convert the image (in numpy array) to tfrecords (the TFExampleFromImage function) so that they can be used by the ML Engine as input. The flow chart can be viewed as follows:
+ * The pipeline is defined in the [preprocess.py](trainer/preprocess.py) file in Beam framework (a similar [Spark code](trainer/preprocess_in_spark.py) is also prepared). The major parts in the pipeline is to apply selection cuts and assign correct labels (the ReadFileAndConvert function), convert the raw information of particles to an image (the ProcessImage function), and convert the image (in numpy array) to tfrecords (the TFExampleFromImage function) so that they can be used by the ML Engine as input. The flow chart can be viewed as follows:
 
 <p align="center">
-<img src="images/preprocess_pipeline.png" width="250">
+<img src="images/preprocess_pipeline.png" width="500">
 </p>
 
 ## Covnet definition and training
- * The definition of the model is coded in [model.py](trainer/model.py). Function build\_conv\_model uses Keras API to define the whole Covnet structure with couple of tuning parameters. The build\_read\_and\_decode\_fn provides input batchs with images and labels for both training and testing. The model\_fn defines the loss, optimization method and evaluation metrics. 
+ * The definition of the model is coded in [model.py](trainer/model.py). Function build\_conv\_model uses Keras API to define the Covnet structure with couple of tuning parameters. The build\_read\_and\_decode\_fn provides input batchs with images and labels for both training and testing. The model\_fn defines the loss, optimization method and evaluation metrics. 
  * In the [task.py](trainer/task.py) file, build a tf.contrib.learn.Experiment to handle the training and evaluation loops for distributed training.
  * The training results are stored in gs://cnn-tagger/* including the exported model.
  * The structure of the Covnet and training flow chart is extracted from the tensorboard monitor below.
 
 <p align="center"> 
-<img src="images/cnn_training.png" width="600">
+<img src="images/cnn_training.png" width="1000">
 </p>
 
 ## Hyper-parameter tuning
- * For a simple example, I show the tuning of the learning_rate which is one of the most important hyper-parameters. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
+ * As a simple example, I show the tuning of the learning_rate which is one of the most important hyper-parameters. The definition of the tuning parameters are in the [hptuning_config.yaml](hptuning_config.yaml) file. 
  * A scan of 5 different learning_rate is shown below. The default value chosen was 1e-4, however a better one is found to be 0.0005 (yellow line) which provides an improved accuracy!
+
 <p align="center">
-<img src="images/hptuning.png" width="600">
+<img src="images/hptuning.png" width="1200">
 </p>
 
- * After couple of other tuning of the various parameters, I end up with accuracy over 90% which improves from around 84% accuracy using some initial values.
+ * After couple of other tuning of various parameters, I end up with accuracy over 90% which improves from around 80% accuracy using some initial values.
 
 ## Prediction Service
  * The production level version (v1) of training results are located at gs://cnn-tagger/prod-v1 bucket. The exported model is in gs://cnn-tagger/prod-v1/export/Servo/1496207134.
- * I setup a prediction service and run an online prediction for 10 examples in this [json](predict_test_more.json) file. The output is the following:
+ * I setup a prediction service and run an online prediction for 10 examples provided in this [json](predict_test_more.json) file. The output is the following:
    <pre>
 	[0.9843168258666992, 0.01568314991891384]
 	[0.9562500715255737, 0.04374995082616806]
