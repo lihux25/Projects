@@ -202,11 +202,10 @@ def run(argv=None):
     parser.add_argument('--output',
                           dest='output',
                           default='output_from_beam',
-                          help='Output file to write results to.')
-    parser.add_argument( '--output_path',
+                          help='Key string of the output file name to write results to.')
+    parser.add_argument('--output_path',
                           default='preprocess_output',
-                          help='Input specified as uri to CSV file. Each line of csv file '
-                          'contains colon-separated GCS uri to an image and labels.')
+                          help='Path directory to put the results to.')
 
     known_args, pipeline_args = parser.parse_known_args(argv)
 
