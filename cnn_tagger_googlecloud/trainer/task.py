@@ -62,6 +62,18 @@ def generate_experiment_fn(train_file_pattern,
                             metric_fn=tf.contrib.metrics.streaming_accuracy,
                             prediction_key="classes"
                         ),
+            'precision_eval':  tf.contrib.learn.MetricSpec(
+                            metric_fn=tf.contrib.metrics.streaming_precision,
+                            prediction_key="classes"
+                        ),
+            'recall_eval':  tf.contrib.learn.MetricSpec(
+                            metric_fn=tf.contrib.metrics.streaming_recall,
+                            prediction_key="classes"
+                        ),
+            'auc_eval':  tf.contrib.learn.MetricSpec(
+                            metric_fn=tf.contrib.metrics.streaming_auc,
+                            prediction_key="classes"
+                        ),
         }
     
         estimator = tf.contrib.learn.Estimator(
@@ -152,7 +164,7 @@ if __name__ == '__main__':
         '--learning-rate',
         help='the tunable learning rate',
         type=float,
-        default=0.0005
+        default=0.000786
     )
 
     parser.add_argument(

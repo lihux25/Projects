@@ -139,16 +139,21 @@ def build_conv_model(inputs, params):
     dense_layer1_size = params['dense_layer1_size']
     filter_size = params['filter_size']
     pool_size = params['pool_size']
-    
+   
+    # Output of the first layer shape is (None, HEIGHT, WIDTH, num_filters)
+    # Total number of paramers are: num_filters * filter_size * filter_size * CHANNELS + num_filters (bias term)
     model.add(InputLayer(input_tensor=inputs))
     model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
     model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
-    
+   
+    # Output of the second layer shape is (None, HEIGHT/pool_size, WIDTH/pool_size, num_filters)
+    # Total number of parameters are: num_filters * filter_size * filter_size * num_filters + num_filters 
     model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
     model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
 
+    # Ditto
     model.add(Conv2D(num_filters, (filter_size, filter_size), activation='relu', padding='same'))
     model.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
     model.add(Dropout(dropout_prob))
@@ -158,6 +163,8 @@ def build_conv_model(inputs, params):
     model.add(Dense(dense_layer1_size, activation='relu'))
     model.add(Dropout(dropout_prob))
 
+    # Output shape is (None, CLASSES)
+    # Number of parameters are: (dense_layer1_size + 1) * CLASSES
     # The loss will be defined in tensorflow Estimator
     model.add(Dense(CLASSES, activation=None))
     

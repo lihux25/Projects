@@ -7,7 +7,7 @@ setenv SOURCE_BUCKET "gs://jetimage-tfrecords"
 #setenv SCALE_TIER BASIC
 
 ## These are for distributed node training using Cloud ML Engine
-setenv OUTPUT_BUCKET "gs://cnn-tagger""/distributed-try-hptuning-only-learning-rate"
+setenv OUTPUT_BUCKET "gs://cnn-tagger""/distributed-try-hptuning-only-learning-rate-1"
 setenv SCALE_TIER STANDARD_1
 setenv HPTUNING_CONFIG hptuning_config.yaml
 
@@ -22,5 +22,5 @@ gcloud ml-engine jobs submit training $JOB_ID \
                                     -- \
                                     --train-file-pattern "$SOURCE_BUCKET/v2/train/prod_from_beam-*.tfrecords.gz" \
                                     --eval-file-pattern  "$SOURCE_BUCKET/v2/test/prod_from_beam-*.tfrecords.gz" \
-                                    --num-epochs 10000
+                                    --num-epochs 4000
 
