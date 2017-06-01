@@ -28,8 +28,8 @@
 </p>
 
 ## Covnet definition and training
- * The definition of the model is coded in [model.py](trainer/model.py). Function build\_conv\_model uses Keras API to define the Covnet structure with couple of tuning parameters. The build\_read\_and\_decode\_fn provides input batchs with images and labels for both training and testing. The model\_fn defines the loss, optimization method and evaluation metrics. 
- * In the [task.py](trainer/task.py) file, build a tf.contrib.learn.Experiment to handle the training and evaluation loops for distributed training.
+ * The definition of the model is coded in [model.py](trainer/model.py). Function build\_conv\_model uses Keras API to define the Covnet structure with couple of tuning parameters. The build\_read\_and\_decode\_fn provides input batches with images and labels for both training and testing. The model\_fn defines the loss, optimization method and evaluation metrics. 
+ * The [task.py](trainer/task.py) file controls the training pileline where a tf.contrib.learn.Experiment is used to handle the training and evaluation loops for distributed training.
  * The training results are stored in gs://cnn-tagger/* including the exported model.
  * The structure of the Covnet and training flow chart is extracted from the tensorboard monitor below.
 
