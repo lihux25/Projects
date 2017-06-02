@@ -45,7 +45,7 @@
 <img src="images/hptuning.png" width="1200">
 </p>
 
- * After couple of other tuning of various parameters, I end up with accuracy over 90% which improves from around 80% accuracy using some initial values.
+ * After couple of other tuning of various parameters, I end up with accuracy over 90% which improves from around 80% accuracy using some initial values. The AUC score is over 0.8.
 
 ## Prediction Service
  * The production level version (v1) of training results are located at gs://cnn-tagger/prod-v1 bucket. The exported model is in gs://cnn-tagger/prod-v1/export/Servo/1496207134.
@@ -62,5 +62,5 @@
 	[0.9301067590713501, 0.06989321857690811]
 	[0.9325234293937683, 0.06747651845216751]
    </pre>
-   where the numbers are probablities to be 0 (noise background) or 1 (signal object). And the predicted class of each sample is exactly what we expect!
+   where the numbers are probablities to be 0 (noise background) or 1 (signal object). And the predicted class of each sample is exactly what we expect (with a prob. threshold at 0.5).
 
