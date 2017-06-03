@@ -63,7 +63,7 @@
 	[0.9325234293937683, 0.06747651845216751]
    </pre>
    where the numbers are probablities to be 0 (noise background) or 1 (signal object). And the predicted class of each sample is exactly what we expect (with a prob. threshold at 0.5).
- * I load the exported model (v1) locally in the [service.py](trainer/service.py). Using the test samples, I inspect the ROC as follows. As can be seen the AUC score is over 0.9 and the ROC looks good. By selecting different point in the curve, we can try to meet our desired (TPR, FPR) requirement.
+ * I load the exported model (v1) locally in the [serving.py](trainer/serving.py). Using the test samples, I inspect the ROC as follows. As can be seen the AUC score is over 0.9 and the ROC looks good. By selecting different point in the curve, we can try to meet our desired (TPR, FPR) requirement.
 
  <p align="center">
  <img src="images/roc.png", width="400">
