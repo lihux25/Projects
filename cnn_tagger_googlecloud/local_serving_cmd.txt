@@ -1,0 +1,1 @@
+python trainer/serving.py --model-dir gs://cnn-tagger/prod-v1/export/Servo/1496207134 --input-list "trainer/jetimage-tfrecords/v2/test/*.tfrecords.gz"
