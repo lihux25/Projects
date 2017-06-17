@@ -128,7 +128,7 @@ def build_read_and_decode_fn(filenamelist, batch_size, shuffle, compressType = '
 
 def build_conv_model(inputs, params):
     """
-    Function to compose the Converlutional Neural Network model
+    Function to compose the Convolutional Neural Network model
     A high level Keras API is used to speed up the network building
     """
     model = Sequential()
