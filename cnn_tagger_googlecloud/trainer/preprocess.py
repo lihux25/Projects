@@ -26,15 +26,12 @@ import re
 from StringIO import StringIO
 
 import apache_beam as beam
-from apache_beam.metrics import Metrics
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
-from PIL import Image
 import tensorflow as tf
 import numpy as np
 
-from tensorflow.contrib.slim.python.slim.nets import inception_v3 as inception
 from tensorflow.python.framework import errors
 from tensorflow.python.lib.io import file_io
 
